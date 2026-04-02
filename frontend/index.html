@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Farming — IoT Dashboard</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --card:      #161b22;
+      --border:    #30363d;
+      --text:      #c9d1d9;
+      --muted:     #8b949e;
+      --green:     #3fb950;
+      --yellow:    #d29922;
+      --red:       #f85149;
+      --blue:      #58a6ff;
+      --purple:    #bc8cff;
+      --orange:    #e3b341;
+      --radius:    8px;
+      --gap:       16px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── Header ──────────────────────────────────────────── */
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 18px; color: var(--green); }
+    header h1 span { color: var(--blue); }
+
+    #status-bar {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    #status-bar .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      display: inline-block;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+
+    /* ── Nav Tabs ─────────────────────────────────────────── */
+    nav {
+      display: flex;
+      gap: 4px;
+      padding: 12px 24px 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover      { color: var(--text); }
+    .tab-btn.active     { color: var(--blue); border-bottom-color: var(--blue); }
+
+    /* ── Main Content ─────────────────────────────────────── */
+    main {
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Section Headers ─────────────────────────────────── */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .section-header h2 { font-size: 16px; color: var(--text); }
+    .count-badge {
+      background: var(--border);
+      color: var(--muted);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    /* ── Cards Grid ───────────────────────────────────────── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: var(--gap);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--blue); }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+
+    /* ── Severity Badges ─────────────────────────────────── */
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .badge-CRITICAL { background: #3d1111; color: var(--red); border: 1px solid var(--red); }
+    .badge-WARNING  { background: #2d2000; color: var(--yellow); border: 1px solid var(--yellow); }
+    .badge-INFO     { background: #0d2137; color: var(--blue); border: 1px solid var(--blue); }
+
+    .badge-active    { background: #0d2800; color: var(--green); border: 1px solid var(--green); }
+    .badge-fallow    { background: #1e1e1e; color: var(--muted); border: 1px solid var(--border); }
+    .badge-triggered { background: #2d1200; color: var(--orange); border: 1px solid var(--orange); }
+    .badge-completed { background: #0d2800; color: var(--green); border: 1px solid var(--green); }
+    .badge-failed    { background: #3d1111; color: var(--red); border: 1px solid var(--red); }
+
+    /* ── Plot Card specifics ─────────────────────────────── */
+    .plot-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .metric {
+      background: #0d1117;
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .metric-label  { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-value  { font-size: 16px; font-weight: 700; margin-top: 2px; }
+    .metric-value.green  { color: var(--green); }
+    .metric-value.yellow { color: var(--yellow); }
+    .metric-value.red    { color: var(--red); }
+    .metric-value.blue   { color: var(--blue); }
+
+    /* ── Stage Progress Bar ───────────────────────────────── */
+    .stage-bar {
+      margin-top: 12px;
+    }
+    .stage-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .stage-bar-track {
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .stage-bar-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    /* ── Alert Card specifics ────────────────────────────── */
+    .alert-message {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.5;
+      margin-top: 6px;
+      word-break: break-word;
+    }
+    .alert-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 8px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .alert-meta span::before { content: "• "; }
+
+    /* ── Irrigation Card ─────────────────────────────────── */
+    .irr-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      padding: 4px 0;
+      border-bottom: 1px solid #1c2128;
+    }
+    .irr-row:last-child { border-bottom: none; }
+    .irr-key   { color: var(--muted); }
+    .irr-value { color: var(--text); font-weight: 500; }
+
+    /* ── Irrigation Active Pulse ─────────────────────────── */
+    .irrigation-active {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--orange);
+    }
+    .irrigation-active .dot-active {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--orange);
+      animation: pulse 1s infinite;
+    }
+
+    /* ── Empty states ─────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 13px; }
+
+    /* ── Loading spinner ─────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Filter bar ──────────────────────────────────────── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 5px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    /* ── Refresh bar ─────────────────────────────────────── */
+    .refresh-bar {
+      height: 2px;
+      background: var(--border);
+      position: fixed;
+      bottom: 0; left: 0;
+      width: 0%;
+      transition: width linear;
+      background: var(--blue);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🌾 Smart Farming <span>IoT Dashboard</span></h1>
+  <div id="status-bar">
+    <span class="dot"></span>
+    <span id="last-refresh-time">Connecting...</span>
+    <span id="refresh-countdown"></span>
+  </div>
+</header>
+
+<nav>
+  <button class="tab-btn active" onclick="switchTab('plots', this)">🗺 Plot Status</button>
+  <button class="tab-btn"        onclick="switchTab('alerts', this)">🔔 Alerts</button>
+  <button class="tab-btn"        onclick="switchTab('irrigation', this)">💧 Irrigation History</button>
+</nav>
+
+<main>
+
+  <!-- ── TAB: Plot Status ─────────────────────────────────── -->
+  <div id="tab-plots" class="tab-panel active">
+    <div class="section-header">
+      <h2>📍 Farm Plot Status</h2>
+      <span class="count-badge" id="plot-count">Loading...</span>
+    </div>
+    <div id="plots-container" class="cards-grid">
+      <div class="empty-state"><span class="spinner"></span> Loading plots...</div>
+    </div>
+  </div>
+
+  <!-- ── TAB: Alerts ──────────────────────────────────────── -->
+  <div id="tab-alerts" class="tab-panel">
+    <div class="section-header">
+      <h2>🔔 System Alerts</h2>
+      <span class="count-badge" id="alert-count">Loading...</span>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" id="filter-all"        onclick="setAlertFilter('all',this)">All</button>
+      <button class="filter-btn"        id="filter-unresolved" onclick="setAlertFilter('unresolved',this)">Unresolved</button>
+      <button class="filter-btn"        id="filter-CRITICAL"   onclick="setAlertFilter('CRITICAL',this)">🔴 Critical</button>
+      <button class="filter-btn"        id="filter-WARNING"    onclick="setAlertFilter('WARNING',this)">🟡 Warning</button>
+      <button class="filter-btn"        id="filter-INFO"       onclick="setAlertFilter('INFO',this)">🔵 Info</button>
+    </div>
+    <div id="alerts-container" class="cards-grid">
+      <div class="empty-state"><span class="spinner"></span> Loading alerts...</div>
+    </div>
+  </div>
+
+  <!-- ── TAB: Irrigation History ──────────────────────────── -->
+  <div id="tab-irrigation" class="tab-panel">
+    <div class="section-header">
+      <h2>💧 Irrigation Events</h2>
+      <span class="count-badge" id="irr-count">Loading...</span>
+    </div>
+    <div id="irrigation-container" class="cards-grid">
+      <div class="empty-state"><span class="spinner"></span> Loading history...</div>
+    </div>
+  </div>
+
+</main>
+
+<div class="refresh-bar" id="refresh-bar"></div>
+
+<script>
+// ── Configuration ─────────────────────────────────────────────
+const API_BASE       = "http://localhost:8080/smart-farming/api";
+const REFRESH_EVERY  = 8000;   // ms — auto-refresh interval
+
+// ── State ─────────────────────────────────────────────────────
+let alertFilter = "all";
+let refreshTimer, countdownTimer, refreshBarTimer;
+let allAlerts = [];
+
+// ── Tab Management ─────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("tab-" + name).classList.add("active");
+  btn.classList.add("active");
+}
+
+// ── Alert Filter ───────────────────────────────────────────────
+function setAlertFilter(filter, btn) {
+  alertFilter = filter;
+  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  renderAlerts();
+}
+
+// ── Fetch helpers ──────────────────────────────────────────────
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── Main data loader ───────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [plotData, alertData, irrData] = await Promise.all([
+      fetchJSON(`${API_BASE}/plot-status`),
+      fetchJSON(`${API_BASE}/alerts?limit=200`),
+        fetchJSON(`${API_BASE}/irrigation-history?limit=50`),
+
+    ]);
+
+    renderPlots(plotData.plots  || []);
+    allAlerts = alertData.alerts || [];
+    renderAlerts();
+    renderIrrigation(irrData.history || []);
+
+    document.getElementById("plot-count").textContent  = (plotData.plots   || []).length + " plots";
+    document.getElementById("irr-count").textContent   = (irrData.history  || []).length + " events";
+    document.getElementById("last-refresh-time").textContent =
+      "Last updated: " + new Date().toLocaleTimeString();
+
+  } catch (err) {
+    console.error("Data load failed:", err);
+    document.getElementById("last-refresh-time").textContent =
+      "⚠ Connection failed — is Tomcat running?";
+  }
+}
+
+// ── Render: Plots ──────────────────────────────────────────────
+function renderPlots(plots) {
+  const c = document.getElementById("plots-container");
+  if (!plots.length) {
+    c.innerHTML = emptyState("🌱", "No plot data yet. Start the sensor simulator!");
+    return;
+  }
+
+  c.innerHTML = plots.map(p => {
+    const progress = p.baseDurationDays > 0
+      ? Math.min(100, Math.round((p.daysSincePlanting / p.baseDurationDays) * 100))
+      : 0;
+
+    const moistureNum = p.latestMoisture
+      ? parseFloat(p.latestMoisture) : null;
+    const moistureClass = moistureNum === null ? "blue"
+      : moistureNum < p.irrigationThreshold ? "red"
+      : moistureNum > p.maxMoisture ? "yellow" : "green";
+
+    const irrigActive = p.irrigationActive
+      ? `<span class="irrigation-active"><span class="dot-active"></span>IRRIGATING</span>`
+      : "";
+
+    return `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📍 ${p.plotName}</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${irrigActive}
+          <span class="badge badge-${p.plotStatus}">${p.plotStatus.toUpperCase()}</span>
+        </div>
+      </div>
+
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+        🌾 ${p.cropName} &nbsp;|&nbsp;
+        📅 Day ${p.daysSincePlanting}/${p.baseDurationDays} &nbsp;|&nbsp;
+        🏷 Stage: <strong style="color:var(--purple)">${p.currentStage || "Unknown"}</strong>
+      </div>
+
+      <div class="stage-bar">
+        <div class="stage-bar-label">
+          <span>Growth Progress</span>
+          <span>${progress}%</span>
+        </div>
+        <div class="stage-bar-track">
+          <div class="stage-bar-fill" style="width:${progress}%"></div>
+        </div>
+      </div>
+
+      <div class="plot-metrics">
+        <div class="metric">
+          <div class="metric-label">💧 Moisture</div>
+          <div class="metric-value ${moistureClass}">
+            ${p.latestMoisture || "—"}
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">
+            Threshold: ${p.irrigationThreshold}%
+          </div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">🌡 Temperature</div>
+          <div class="metric-value blue">${p.latestTemperature || "—"}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">
+            Range: ${p.minTemperature}–${p.maxTemperature}°C
+          </div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">🔔 Alerts</div>
+          <div class="metric-value ${p.unresolvedAlerts > 0 ? "red" : "green"}">
+            ${p.unresolvedAlerts}
+          </div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">📡 Sensors</div>
+          <div class="metric-value green">${p.activeSensorCount} active</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">
+            Min trust: ${p.minTrustScore !== null ? p.minTrustScore + "%" : "—"}
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);margin-top:10px">
+        🕐 Last reading: ${p.lastReadingAt ? timeAgo(p.lastReadingAt) : "Never"}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── Render: Alerts ─────────────────────────────────────────────
+function renderAlerts() {
+  const c = document.getElementById("alerts-container");
+
+  let filtered = allAlerts;
+  if (alertFilter === "unresolved") filtered = allAlerts.filter(a => !a.resolved);
+  else if (alertFilter === "CRITICAL") filtered = allAlerts.filter(a => a.severity === "CRITICAL");
+  else if (alertFilter === "WARNING")  filtered = allAlerts.filter(a => a.severity === "WARNING");
+  else if (alertFilter === "INFO")     filtered = allAlerts.filter(a => a.severity === "INFO");
+
+  document.getElementById("alert-count").textContent =
+    filtered.length + " alert" + (filtered.length !== 1 ? "s" : "");
+
+  if (!filtered.length) {
+    c.innerHTML = emptyState("✅", "No alerts match the current filter.");
+    return;
+  }
+
+  c.innerHTML = filtered.map(a => `
+    <div class="card" style="${a.resolved ? "opacity:0.55" : ""}">
+      <div class="card-header">
+        <span class="card-title">📍 ${a.plotName}</span>
+        <span class="badge badge-${a.severity}">${a.severity}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">
+        🏷 ${a.alertType}
+        ${a.resolved ? '<span style="color:var(--green)"> ✓ Resolved</span>' : ""}
+      </div>
+      <div class="alert-message">${a.message}</div>
+      <div class="alert-meta">
+        <span>${a.cropName}</span>
+        ${a.cropStage ? "<span>Stage: " + a.cropStage + "</span>" : ""}
+        ${a.sensorType ? "<span>Sensor: " + a.sensorType + " #" + a.sensorId + "</span>" : ""}
+        ${a.trustScore !== null && a.trustScore !== undefined
+          ? "<span>Trust: " + a.trustScore + "%</span>" : ""}
+        <span>🕐 ${timeAgo(a.createdAt)}</span>
+      </div>
+    </div>`).join("");
+}
+
+// ── Render: Irrigation ─────────────────────────────────────────
+function renderIrrigation(events) {
+    const c = document.getElementById("irrigation-container");
+    if (!events.length) {
+        c.innerHTML = emptyState("💧", "No irrigation events yet.");
+        return;
+    }
+    c.innerHTML = events.map(e => {
+        // safe fallbacks for every field
+        const status    = (e.irrigationStatus || e.status || "TRIGGERED").toUpperCase();
+        const badgeCls  = status === "TRIGGERED"  ? "badge-triggered"
+            : status === "COMPLETED"  ? "badge-completed"
+                : status === "CANCELLED"  ? "badge-CRITICAL"
+                    : "badge-INFO";
+        const water     = (e.waterAmountLiters != null)
+            ? Number(e.waterAmountLiters).toFixed(1) + " L"
+            : "N/A";
+        const moisture  = (e.moistureAtTrigger != null)
+            ? Number(e.moistureAtTrigger).toFixed(1) + "%"
+            : "—";
+        const notes     = e.notes || e.trigger_reason || "—";
+
+        return `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">💧 ${e.plotName || "Plot"}</span>
+        <span class="badge ${badgeCls}">${status}</span>
+      </div>
+      <div class="irr-row">
+        <span class="irr-key">Crop</span>
+        <span class="irr-value">${e.cropName || "—"}</span>
+      </div>
+      <div class="irr-row">
+        <span class="irr-key">Stage</span>
+        <span class="irr-value">${e.stageAtTrigger || "—"}</span>
+      </div>
+      <div class="irr-row">
+        <span class="irr-key">Moisture at trigger</span>
+        <span class="irr-value" style="color:var(--red)">${moisture}</span>
+      </div>
+      <div class="irr-row">
+        <span class="irr-key">Duration</span>
+        <span class="irr-value">${e.durationMinutes || 30} min</span>
+      </div>
+      <div class="irr-row">
+        <span class="irr-key">Water amount</span>
+        <span class="irr-value">${water}</span>
+      </div>
+      <div class="irr-row">
+        <span class="irr-key">Triggered</span>
+        <span class="irr-value">🕐 ${(e.triggeredAt)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">
+        ${notes}
+      </div>
+    </div>`;
+    }).join("");
+}
+
+// ── Utility: Human-readable time ──────────────────────────────
+function timeAgo(ts) {
+  if (!ts) return "—";
+  const then = new Date(ts);
+  const diff = Math.floor((Date.now() - then) / 1000);
+  if (diff < 60)    return diff + "s ago";
+  if (diff < 3600)  return Math.floor(diff/60) + "m ago";
+  if (diff < 86400) return Math.floor(diff/3600) + "h ago";
+  return then.toLocaleDateString();
+}
+
+function emptyState(icon, msg) {
+  return `<div class="empty-state" style="grid-column:1/-1">
+    <div class="icon">${icon}</div><p>${msg}</p>
+  </div>`;
+}
+
+// ── Countdown + refresh bar animation ─────────────────────────
+function startCountdown() {
+  let elapsed = 0;
+  const bar = document.getElementById("refresh-bar");
+  clearInterval(countdownTimer);
+  clearInterval(refreshBarTimer);
+
+  bar.style.transition = "none";
+  bar.style.width = "0%";
+
+  refreshBarTimer = setInterval(() => {
+    elapsed += 200;
+    const pct = Math.min(100, (elapsed / REFRESH_EVERY) * 100);
+    bar.style.transition = "width 0.2s linear";
+    bar.style.width = pct + "%";
+    const remaining = Math.ceil((REFRESH_EVERY - elapsed) / 1000);
+    document.getElementById("refresh-countdown").textContent =
+      remaining > 0 ? `(refresh in ${remaining}s)` : "";
+  }, 200);
+}
+
+// ── Auto-refresh loop ──────────────────────────────────────────
+function scheduleRefresh() {
+  clearInterval(refreshTimer);
+  startCountdown();
+  refreshTimer = setInterval(() => {
+    loadAll();
+    startCountdown();
+  }, REFRESH_EVERY);
+}
+
+// ── Boot ───────────────────────────────────────────────────────
+loadAll();
+scheduleRefresh();
+</script>
+</body>
+</html>
