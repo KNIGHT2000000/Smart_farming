@@ -21,7 +21,7 @@ public class DBConnection {
     private static final String PORT     = "3306";
     private static final String DATABASE = "smart_farming";
     private static final String USER     = "root";
-    private static final String PASSWORD = "vyom@2004";
+    private static final String PASSWORD = "you@password";
 
     private static final String URL =
         "jdbc:mysql://" + HOST + ":" + PORT + "/" + DATABASE
