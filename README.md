@@ -397,16 +397,4 @@ void loop() {
 
 ---
 
-## ✅ Viva Tips
 
-**Q: Why is all logic in the database?**
-A: It guarantees consistency regardless of which application layer calls the procedure. If logic were in Java, two different clients could make conflicting decisions about irrigation.
-
-**Q: Why use a stored procedure instead of SQL in Java?**
-A: Security (parameterized), performance (compiled + cached execution plan), atomicity (wrapped in transaction), and separation of concerns.
-
-**Q: What happens when a sensor sends a bad reading?**
-A: The stored procedure sets `is_valid=0`, the AFTER INSERT trigger fires on `sensor_reading`, reduces `trust_score` by 5%, and if trust drops below 20% the sensor is auto-deactivated with a CRITICAL alert — all without any Java code.
-
-**Q: How does crop stage detection work?**
-A: The procedure calculates `DATEDIFF(CURDATE(), planting_date)` to get days since planting, then joins `crop_stage` where `days BETWEEN start_day AND end_day` — pure SQL, no Java.
